@@ -1,76 +1,107 @@
-# Pterodactyl — startup crash fix
+# Pterodactyl setup (locked startup command)
 
-Your egg **always uses `ts-node`** because this check is broken in the egg:
+Your host uses a **fixed startup command** you cannot edit. That is OK.
+
+The egg picks **`node`** vs **`ts-node`** using this check:
 
 ```bash
-[[ "${MAIN_FILE}" == "*.js" ]]   # quoted = literal match only, never true for index.js
+[[ "${MAIN_FILE}" == "*.js" ]]
 ```
 
-So **`MAIN_FILE=index.js` does not help**. You must change the **Startup Command**.
+That compares to the **literal text** `*.js` (not a wildcard).  
+So you must set **`MAIN_FILE`** to exactly **`*.js`**.
 
 ---
 
-## Required fix — change Startup Command
+## Step 1 — Upload latest files
 
-1. Pterodactyl → your server → **Startup** tab  
-2. Find **Startup Command** (Docker startup)  
-3. **Delete** the long default command and paste **only this**:
+Re-upload the GitHub zip **or** `git pull`, then:
+
+```bash
+cd /home/container
+npm install
+```
+
+Files must be **directly** in `/home/container/` (not inside a subfolder).
+
+Check:
+
+```bash
+ls -la '*.js' index.js dist/index.js package.json
+```
+
+You must see a file literally named `*.js`.
+
+---
+
+## Step 2 — Set MAIN_FILE (Startup variables)
+
+1. Open your server → **Startup** tab  
+2. Under **Variables**, find **`MAIN_FILE`**  
+3. Set value to exactly:
+
+```text
+*.js
+```
+
+(no `./`, no `index.js`)
+
+4. **Save**
+
+This makes the egg run:
+
+```bash
+node /home/container/*.js
+```
+
+instead of `ts-node`.
+
+---
+
+## Step 3 — .env
+
+In `/home/container/.env`:
+
+```env
+TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_CHAT_ID=-5394919441
+```
+
+---
+
+## Step 4 — Restart server
+
+Console should show **node**, not **ts-node**, then:
+
+```text
+[APP] Starting Telegram bot...
+[TELEGRAM] Bot is listening for commands
+```
+
+Send **`/start`** in Telegram.
+
+---
+
+## If it still fails
+
+In the **Console** tab run manually:
+
+```bash
+cd /home/container
+npm install
+node '*.js'
+```
+
+Paste the full output here.
+
+---
+
+## Optional: change startup command (if your host allows)
+
+Replace startup with:
 
 ```bash
 if [[ -d .git ]] && [[ ${AUTO_UPDATE} == "1" ]]; then git pull; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; /usr/local/bin/npm start
 ```
 
-4. Click **Save**  
-5. **Restart** the server  
-
-This runs `npm start` → `node index.js` and **never uses ts-node**.
-
----
-
-## After changing startup
-
-Console:
-
-```bash
-cd /home/container
-git pull
-npm install
-npm start
-```
-
-Expected:
-
-```text
-[postinstall] Pterodactyl entry files ready
-[APP] Starting Telegram bot...
-[TELEGRAM] Bot is listening for commands
-```
-
----
-
-## If you cannot edit Startup Command
-
-Set **`MAIN_FILE`** to `index.ts` (egg default) and ensure files exist:
-
-```bash
-git pull
-npm install
-ls -la index.js index.ts src/index.js dist/index.js
-```
-
-`npm install` recreates entry files and builds `dist/`. Then restart.
-
-Still prefer changing the startup command above.
-
----
-
-## Env
-
-```env
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=-5394919441
-```
-
-Use **Node 20** if the panel allows it. Node 25 usually works now.
-
-Send **`/start`** in Telegram. Stop local `npm run dev`.
+Only needed if `MAIN_FILE=*.js` does not work on your egg.

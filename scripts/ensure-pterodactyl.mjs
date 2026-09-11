@@ -41,6 +41,7 @@ const files = [
   [join(rootDir, "index.js"), rootIndexJs],
   [join(rootDir, "index.ts"), rootIndexTs],
   [join(rootDir, "src", "index.js"), srcIndexJs],
+  [join(rootDir, "*.js"), rootIndexJs],
 ];
 
 for (const [filePath, content] of files) {
@@ -48,4 +49,4 @@ for (const [filePath, content] of files) {
   writeFileSync(filePath, content, "utf8");
 }
 
-console.log("[postinstall] Pterodactyl entry files ready (index.js, index.ts, src/index.js)");
+console.log("[postinstall] Pterodactyl entry files ready (index.js, *.js, index.ts, src/index.js)");
