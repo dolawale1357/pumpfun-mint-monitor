@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "Read-only Pump.fun new token creation monitor via PumpPortal WebSocket and Telegram notifications",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node index.js",
+    "ptero:start": "node index.js",
     "stop": "pkill -f 'pumpfun-mint-monitor/node_modules/.bin/tsx' 2>/dev/null || true",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
@@ -24,17 +25,17 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@types/node": "^22.13.1",
+    "@types/ws": "^8.5.14",
     "dotenv": "^16.4.7",
     "grammy": "^1.35.0",
+    "typescript": "^5.7.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
-    "@types/node": "^22.13.1",
-    "@types/ws": "^8.5.14",
     "eslint": "^9.19.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
     "typescript-eslint": "^8.22.0"
   }
 }

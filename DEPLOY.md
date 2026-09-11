@@ -108,7 +108,51 @@ pm2 restart pumpfun-mint-monitor
 
 ---
 
-## Option B — Railway / Render / Fly.io
+## Option B — Pterodactyl panel
+
+Your error happens when the egg runs **`ts-node`** on a TypeScript path and **`dist/` was never built**.
+
+### Fix
+
+1. Upload the **whole project** (including `package.json`, `src/`, `tsconfig.json`, root **`index.js`**).
+2. In the panel **Variables** / **Startup**, set:
+   - **`MAIN_FILE`** = `index.js`  
+     (must be `.js` so the egg uses `node`, not `ts-node`)
+3. Ensure **dev dependencies install** (TypeScript must run for `npm run build`):
+   - Do **not** use production-only install, **or**
+   - run **`npm install`** then **`npm run build`** in the console before start.
+4. Add `.env` in `/home/container/` (or map env vars in the panel):
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID` (group: negative, e.g. `-5394919441`)
+5. **Reinstall** or in console:
+   ```bash
+   npm install
+   npm run build
+   ```
+6. Start the server.
+
+You should see:
+
+```text
+[APP] Starting Telegram bot (PumpPortal stream will start on /start)
+[TELEGRAM] Bot is listening for commands
+```
+
+### Optional: custom startup command
+
+If your egg allows editing the start command, use:
+
+```bash
+if [ -f package.json ]; then npm install; fi && npm run build && node index.js
+```
+
+### Node version
+
+Use **Node 20 LTS** if the panel lets you choose. Node 25 often works, but 20 is safer.
+
+---
+
+## Option C — Railway / Render / Fly.io
 
 Works if the service stays **always on** (not scale-to-zero serverless).
 
