@@ -1,75 +1,76 @@
-# Pterodactyl — fix startup crash
+# Pterodactyl — startup crash fix
 
-Your error means the egg is running **`ts-node`** on a **`.ts`** path.  
-This project ships **pre-built `dist/`** + root **`index.js`** so **`node`** can start without building.
-
----
-
-## Step A — Pull latest code
+Your egg **always uses `ts-node`** because this check is broken in the egg:
 
 ```bash
-cd /home/container
-git pull
-npm install
+[[ "${MAIN_FILE}" == "*.js" ]]   # quoted = literal match only, never true for index.js
 ```
 
-`npm install` runs **`npm run build`** automatically (`prepare` script).
+So **`MAIN_FILE=index.js` does not help**. You must change the **Startup Command**.
 
 ---
 
-## Step B — Set `MAIN_FILE` (Startup variables)
+## Required fix — change Startup Command
 
-Use **exactly one** of these (no `./` needed):
-
-| Value | How it starts |
-|--------|----------------|
-| **`index.js`** | `node` (recommended) |
-| `server.js` | `node` |
-| `app.js` | `node` |
-| `index.ts` | `ts-node` → loads `dist/` |
-
-**Do not use:** `src/index.ts` — that triggers `ts-node` on source and crashes.
-
----
-
-## Step C — Replace startup command (if it still crashes)
-
-**Startup** tab → replace **Startup Command** with:
+1. Pterodactyl → your server → **Startup** tab  
+2. Find **Startup Command** (Docker startup)  
+3. **Delete** the long default command and paste **only this**:
 
 ```bash
 if [[ -d .git ]] && [[ ${AUTO_UPDATE} == "1" ]]; then git pull; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; /usr/local/bin/npm start
 ```
 
-This always runs **`npm start`** → **`node index.js`** (ignores broken `MAIN_FILE` / `ts-node`).
+4. Click **Save**  
+5. **Restart** the server  
+
+This runs `npm start` → `node index.js` and **never uses ts-node**.
 
 ---
 
-## Step D — Test in console
+## After changing startup
+
+Console:
 
 ```bash
 cd /home/container
-ls -la index.js dist/index.js
+git pull
+npm install
 npm start
 ```
 
 Expected:
 
 ```text
-[APP] Starting Telegram bot (PumpPortal stream will start on /start)
+[postinstall] Pterodactyl entry files ready
+[APP] Starting Telegram bot...
 [TELEGRAM] Bot is listening for commands
 ```
 
 ---
 
-## Env & Node
+## If you cannot edit Startup Command
 
-`.env` in `/home/container/`:
+Set **`MAIN_FILE`** to `index.ts` (egg default) and ensure files exist:
+
+```bash
+git pull
+npm install
+ls -la index.js index.ts src/index.js dist/index.js
+```
+
+`npm install` recreates entry files and builds `dist/`. Then restart.
+
+Still prefer changing the startup command above.
+
+---
+
+## Env
 
 ```env
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=-5394919441
 ```
 
-Set **Node 20** in the panel (avoid Node 25 if possible).
+Use **Node 20** if the panel allows it. Node 25 usually works now.
 
-Send **`/start`** in Telegram. Only **one** bot instance (stop local `npm run dev`).
+Send **`/start`** in Telegram. Stop local `npm run dev`.
