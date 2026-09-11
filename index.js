@@ -1,41 +1,15 @@
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
-const tsxCli = join(rootDir, "node_modules", "tsx", "dist", "cli.mjs");
-const entry = join(rootDir, "src", "index.ts");
+const distEntry = join(rootDir, "dist", "index.js");
 
-function fail(message) {
-  console.error(`[APP] ${message}`);
+if (!existsSync(distEntry)) {
+  console.error("[APP] dist/index.js is missing.");
+  console.error("[APP] On the server run: npm install && npm run build");
+  console.error("[APP] Or git pull the latest repo (includes pre-built dist).");
   process.exit(1);
 }
 
-if (!existsSync(entry)) {
-  fail("src/index.ts not found — upload the full project to /home/container.");
-}
-
-if (!existsSync(tsxCli)) {
-  console.log("[APP] tsx not found — running npm install...");
-  const install = spawnSync("npm", ["install"], {
-    cwd: rootDir,
-    stdio: "inherit",
-    env: process.env,
-  });
-  if (install.status !== 0) {
-    fail("npm install failed");
-  }
-}
-
-if (!existsSync(tsxCli)) {
-  fail("tsx is missing. Run: npm install");
-}
-
-const result = spawnSync(process.execPath, [tsxCli, entry], {
-  cwd: rootDir,
-  stdio: "inherit",
-  env: process.env,
-});
-
-process.exit(result.status ?? 1);
+await import(pathToFileURL(distEntry).href);

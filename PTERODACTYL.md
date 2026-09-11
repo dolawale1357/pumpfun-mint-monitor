@@ -1,67 +1,54 @@
-# Pterodactyl setup
+# Pterodactyl — fix startup crash
 
-Your error (`ts-node` + `Cannot find module './index.js'`) means the **default egg startup** is still running **`ts-node`** on a `.ts` file.  
-**Do not rely on `MAIN_FILE` alone** — replace the startup command (recommended).
-
----
-
-## Fix (recommended): replace startup command
-
-1. Open the server in Pterodactyl → **Startup** tab.
-2. Find **Startup Command** (Docker startup / start command).
-3. **Replace the entire command** with:
-
-```bash
-if [[ -f package.json ]]; then /usr/local/bin/npm install; fi; /usr/local/bin/npm start
-```
-
-4. Save, then **Reinstall** or restart the server.
-
-This runs **`npm start`** → **`node index.js`** → **`tsx src/index.ts`** (no `ts-node`, no manual build).
+Your error means the egg is running **`ts-node`** on a **`.ts`** path.  
+This project ships **pre-built `dist/`** + root **`index.js`** so **`node`** can start without building.
 
 ---
 
-## If you must use `MAIN_FILE` only
-
-Set **`MAIN_FILE`** to exactly (no `./` prefix):
-
-```text
-index.js
-```
-
-Or try:
-
-```text
-server.js
-```
-
-Both files are in the project root. The egg must use **`node`**, not **`ts-node`**.
-
-If `MAIN_FILE` is `index.ts`, `src/index.ts`, or `./index.js`, the egg often still uses **ts-node** and will crash.
-
----
-
-## Files & env
-
-Upload the full repo to `/home/container/`:
-
-- `src/`, `package.json`, `tsconfig.json`, `index.js`, `server.js`, `.env`
-
-`.env` example:
-
-```env
-TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=-5394919441
-PUMPPORTAL_API_KEY=
-```
-
----
-
-## Console test
+## Step A — Pull latest code
 
 ```bash
 cd /home/container
+git pull
 npm install
+```
+
+`npm install` runs **`npm run build`** automatically (`prepare` script).
+
+---
+
+## Step B — Set `MAIN_FILE` (Startup variables)
+
+Use **exactly one** of these (no `./` needed):
+
+| Value | How it starts |
+|--------|----------------|
+| **`index.js`** | `node` (recommended) |
+| `server.js` | `node` |
+| `app.js` | `node` |
+| `index.ts` | `ts-node` → loads `dist/` |
+
+**Do not use:** `src/index.ts` — that triggers `ts-node` on source and crashes.
+
+---
+
+## Step C — Replace startup command (if it still crashes)
+
+**Startup** tab → replace **Startup Command** with:
+
+```bash
+if [[ -d .git ]] && [[ ${AUTO_UPDATE} == "1" ]]; then git pull; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; /usr/local/bin/npm start
+```
+
+This always runs **`npm start`** → **`node index.js`** (ignores broken `MAIN_FILE` / `ts-node`).
+
+---
+
+## Step D — Test in console
+
+```bash
+cd /home/container
+ls -la index.js dist/index.js
 npm start
 ```
 
@@ -72,10 +59,17 @@ Expected:
 [TELEGRAM] Bot is listening for commands
 ```
 
-Then send **`/start`** in Telegram. Stop **`npm run dev`** on your PC (one bot instance).
-
 ---
 
-## Node version
+## Env & Node
 
-Use **Node 20 LTS** in the panel if you can (not required, but safer than Node 25).
+`.env` in `/home/container/`:
+
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=-5394919441
+```
+
+Set **Node 20** in the panel (avoid Node 25 if possible).
+
+Send **`/start`** in Telegram. Only **one** bot instance (stop local `npm run dev`).
