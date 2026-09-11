@@ -29,13 +29,13 @@
     "@types/ws": "^8.5.14",
     "dotenv": "^16.4.7",
     "grammy": "^1.35.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "eslint": "^9.19.0",
-    "tsx": "^4.19.2",
     "typescript-eslint": "^8.22.0"
   }
 }

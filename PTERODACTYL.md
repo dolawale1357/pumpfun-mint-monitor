@@ -1,23 +1,53 @@
-# Pterodactyl setup (quick)
+# Pterodactyl setup
 
-## 1. Startup variable
+Your error (`ts-node` + `Cannot find module './index.js'`) means the **default egg startup** is still running **`ts-node`** on a `.ts` file.  
+**Do not rely on `MAIN_FILE` alone** — replace the startup command (recommended).
 
-Set **`MAIN_FILE`** to:
+---
+
+## Fix (recommended): replace startup command
+
+1. Open the server in Pterodactyl → **Startup** tab.
+2. Find **Startup Command** (Docker startup / start command).
+3. **Replace the entire command** with:
+
+```bash
+if [[ -f package.json ]]; then /usr/local/bin/npm install; fi; /usr/local/bin/npm start
+```
+
+4. Save, then **Reinstall** or restart the server.
+
+This runs **`npm start`** → **`node index.js`** → **`tsx src/index.ts`** (no `ts-node`, no manual build).
+
+---
+
+## If you must use `MAIN_FILE` only
+
+Set **`MAIN_FILE`** to exactly (no `./` prefix):
 
 ```text
 index.js
 ```
 
-The egg uses **`node`** only when the file ends with `.js`.  
-If `MAIN_FILE` is `src/index.ts` (or anything else), it runs **`ts-node`** and will crash.
+Or try:
 
-## 2. Upload files
+```text
+server.js
+```
 
-Upload the full project: `src/`, `package.json`, `tsconfig.json`, `index.js`, `.env`.
+Both files are in the project root. The egg must use **`node`**, not **`ts-node`**.
 
-## 3. Environment
+If `MAIN_FILE` is `index.ts`, `src/index.ts`, or `./index.js`, the egg often still uses **ts-node** and will crash.
 
-Create `/home/container/.env` or set panel variables:
+---
+
+## Files & env
+
+Upload the full repo to `/home/container/`:
+
+- `src/`, `package.json`, `tsconfig.json`, `index.js`, `server.js`, `.env`
+
+`.env` example:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_token
@@ -25,36 +55,27 @@ TELEGRAM_CHAT_ID=-5394919441
 PUMPPORTAL_API_KEY=
 ```
 
-## 4. Install & start
+---
 
-On first start, `index.js` runs **`npm run build`** automatically if `dist/` is missing.
-
-Or in the console:
+## Console test
 
 ```bash
+cd /home/container
 npm install
 npm start
 ```
 
-## 5. Telegram
+Expected:
 
-Send **`/start`** in your authorized group.  
-Stop **`npm run dev`** on your PC (one bot instance only).
-
-## Optional: custom startup command
-
-If your egg allows replacing the start command:
-
-```bash
-bash start.sh
+```text
+[APP] Starting Telegram bot (PumpPortal stream will start on /start)
+[TELEGRAM] Bot is listening for commands
 ```
 
-Or:
+Then send **`/start`** in Telegram. Stop **`npm run dev`** on your PC (one bot instance).
 
-```bash
-npm install && node index.js
-```
+---
 
 ## Node version
 
-Use **Node 20 LTS** in the panel if available.
+Use **Node 20 LTS** in the panel if you can (not required, but safer than Node 25).

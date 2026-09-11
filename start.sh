@@ -6,4 +6,4 @@ if [[ -f package.json ]]; then
   npm install
 fi
 
-exec node index.js
+exec npm start
