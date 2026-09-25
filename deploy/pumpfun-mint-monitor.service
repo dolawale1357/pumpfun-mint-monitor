@@ -1,0 +1,44 @@
+[Unit]
+Description=Pump.fun mint monitor (Telegram alert bot)
+Documentation=https://github.com/dolawale1357/pumpfun-mint-monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pumpmon
+Group=pumpmon
+WorkingDirectory=/opt/pumpfun-mint-monitor
+
+# Secrets live here, not in the unit file. chmod 600 this file.
+EnvironmentFile=/opt/pumpfun-mint-monitor/.env
+
+# index.js resolves and imports the committed dist/index.js.
+ExecStart=/usr/bin/node /opt/pumpfun-mint-monitor/index.js
+
+# Always-on supervisor: bring it back if it crashes or if the box reboots.
+Restart=always
+RestartSec=10
+
+# But stop hammering if it is crash-looping (20 crashes in 5 minutes).
+StartLimitIntervalSec=300
+StartLimitBurst=20
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pumpfun-mint-monitor
+
+# Hardening: the bot only needs outbound network and its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+ReadWritePaths=/opt/pumpfun-mint-monitor
+
+[Install]
+WantedBy=multi-user.target

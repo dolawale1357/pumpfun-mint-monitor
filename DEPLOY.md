@@ -2,7 +2,12 @@
 
 This bot must run **continuously** (Telegram polling + PumpPortal WebSocket). Use a small **always-on server**, not your laptop.
 
-**Recommended:** Linux VPS (~$4–6/month) + **PM2** process manager.
+**No budget?** See **[FREE-HOSTING.md](./FREE-HOSTING.md)** for genuinely free,
+always-on options (Oracle/GCP Always Free, or a free bot panel that needs no
+card), and for the platforms that **cannot** work for this app.
+
+**Paid:** a small Linux VPS (~$4–6/month) + **PM2** process manager is the
+low-friction option.
 
 **Important:** Run **only one instance** of the bot (same `TELEGRAM_BOT_TOKEN`). If your PC and the VPS both run it, you get `409 Conflict` errors.
 
@@ -62,6 +67,19 @@ chmod 600 .env
 
 ### 5. Install, build, run with PM2
 
+**Shortcut:** steps 3-5 are scripted. Instead of doing them by hand:
+
+```bash
+sudo bash deploy/install-vps.sh
+```
+
+It installs Node 20, creates a `pumpmon` service user, installs dependencies,
+writes a `.env` template, and registers a **systemd** service that restarts on
+crash and on reboot. Then edit `/opt/pumpfun-mint-monitor/.env` and
+`sudo systemctl start pumpfun-mint-monitor`.
+
+The manual PM2 route, if you prefer it:
+
 ```bash
 npm ci
 npm run build
@@ -115,12 +133,22 @@ Your error happens when the egg runs **`ts-node`** on a TypeScript path and **`d
 ### Fix
 
 1. Upload the **whole project** (including `package.json`, `src/`, `tsconfig.json`, root **`index.js`**).
-2. In the panel **Variables** / **Startup**, set:
-   - **`MAIN_FILE`** = `index.js`  
-     (must be `.js` so the egg uses `node`, not `ts-node`)
-3. Ensure **dev dependencies install** (TypeScript must run for `npm run build`):
-   - Do **not** use production-only install, **or**
-   - run **`npm install`** then **`npm run build`** in the console before start.
+2. In the panel **Variables** / **Startup**, set `MAIN_FILE`. The right value
+   depends on how your egg is written:
+   - **Most eggs:** `MAIN_FILE` = `index.js` — it must end in `.js` so the egg
+     runs `node`, not `ts-node`.
+   - **Some eggs:** the startup line tests `[[ "${MAIN_FILE}" == "*.js" ]]`, so
+     it needs the literal text `*.js`. See **[PTERODACTYL.md](./PTERODACTYL.md)**
+     if `index.js` gives you a `ts-node` error.
+3. Install dependencies. `dist/` **is committed**, so no build is required:
+
+   ```bash
+   npm ci --omit=dev --ignore-scripts
+   ```
+
+   `--ignore-scripts` skips both the `postinstall` hook and `prepare` (which
+   runs `npm run build`), so the install cannot fail on a partial tree. Only if
+   you edit `src/` do you need to build: `npm install && npm run build`.
 4. Add `.env` in `/home/container/` (or map env vars in the panel):
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID` (group: negative, e.g. `-5394919441`)

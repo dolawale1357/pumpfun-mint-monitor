@@ -88,11 +88,16 @@ Never commit `.env` or share tokens publicly.
 
 ## Deploy 24/7
 
-To run when your PC is off, deploy to a small Linux VPS and use PM2. Full steps:
+To run when your PC is off, deploy to an always-on server.
 
-**[DEPLOY.md](./DEPLOY.md)**
+**Free options:** see **[FREE-HOSTING.md](./FREE-HOSTING.md)** for genuinely
+free, always-on setups (Oracle/GCP Always Free, or a free bot panel with no
+card required), plus the platforms that cannot work for this bot because it
+opens no HTTP port.
 
-Run **only one** bot instance (VPS **or** local dev, not both).
+**Paid VPS + PM2:** full steps in **[DEPLOY.md](./DEPLOY.md)**.
+
+Run **only one** bot instance (server **or** local dev, not both).
 
 ## Run
 
