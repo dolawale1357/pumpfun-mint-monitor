@@ -127,9 +127,21 @@ In the Render log, a good boot reads:
 
 ## Sleeping, and the keep-awake trade-off
 
-A free instance **spins down after 15 minutes with no inbound traffic**. Because
-the bot opens no port when run elsewhere, the Render instance has no reason to
-receive any, so it will sleep. While it sleeps, the bot is not monitoring.
+**Measured on 2026-09-25 with the bot deployed and monitoring.** A free instance
+**spins down after 15 minutes with no inbound traffic**, and an open outbound
+WebSocket does *not* hold it open. After 26 minutes with no incoming request,
+`/health` reported:
+
+```
+uptimeSeconds: 0        # process restarted; it should have read ~1600
+tokensReceived: 0       # every counter reset
+time_total: 12.8s       # cold start; a warm request takes about 2s
+connectionState: connected   # AUTOSTART_MONITORING=true reconnected it on boot
+```
+
+So the instance had been asleep for roughly 11 minutes, and the bot was not
+monitoring during that window. `AUTOSTART_MONITORING=true` is what made it come
+back on its own rather than sitting idle until someone sent `/start`.
 
 The usual workaround is an external pinger. Point a free UptimeRobot monitor at
 `/health` every 5 minutes and the idle timer never fires. Two notes:
