@@ -31,8 +31,12 @@ idle services, cannot run it. Most "free tier" platforms work that way.
 
 ## Option 1 — Oracle Cloud Always Free ★ best if you have a card
 
-Free with **no time limit**. ARM Ampere A1 (up to 4 CPU / 24 GB) or two AMD
-micro instances. This is far more machine than the bot needs.
+Free with **no time limit**. ARM Ampere A1 or two AMD micro instances. This is
+far more machine than the bot needs.
+
+**Oracle halved the ARM allowance on 15 June 2026**, from 4 CPU / 24 GB down to
+**2 CPU / 12 GB**, enforced from 18 August 2026. Older guides still quote the
+old figure. It is still enormously more than this bot needs.
 
 Two catches, both manageable:
 
@@ -106,12 +110,48 @@ No build step is needed: `dist/` is committed.
 
 ---
 
+## Option 4 — Cheapest paid VPS, if you can pay by card
+
+If a card is available and you want this genuinely hands-off, a small root VPS
+beats every option above. No panel, no sleep, no idle reclamation, no forced
+logins, and you own the machine.
+
+| Provider | Cheapest usable plan | Notes |
+|---|---|---|
+| **RackNerd** | ~$11-22 **per year** — 1 GB RAM / 1 vCPU / 20 GB SSD | Best value by a wide margin. Annual billing, cards and PayPal, no idle policy, full root, instant setup. |
+| Vultr | $2.50-5/mo | Instant, monthly billing, card. Costs more over a year. |
+| DigitalOcean | $4-6/mo | Same idea, friendlier UI. |
+| Hetzner | ~EUR 4-5/mo | Reputable, but raised prices across the board in June 2026 and sometimes asks for ID. |
+
+Even the smallest plan is about 16x more machine than the bot needs (~55-62 MB
+RAM). From a fresh Ubuntu or Debian VM, one command does the rest. It installs
+Node 20, clones this repo, creates a service user, installs dependencies,
+writes `.env`, and registers the service to start on boot:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dolawale1357/pumpfun-mint-monitor/main/deploy/install-vps.sh -o /tmp/install.sh
+sudo bash /tmp/install.sh
+sudo nano /opt/pumpfun-mint-monitor/.env   # paste token + chat id
+sudo systemctl start pumpfun-mint-monitor
+sudo journalctl -u pumpfun-mint-monitor -f
+```
+
+The installer writes `AUTOSTART_MONITORING=true` into `.env`, so an unattended
+restart resumes monitoring instead of leaving the bot silent.
+
+One caution: **Oracle is not the right free pick for this bot** even when you
+have a card, because of the idle policy below. Paying ~$1-2/month removes that
+entire category of problem.
+
+---
+
 ## Which should you pick?
 
 | Situation | Use |
 |---|---|
-| You have any card (even with no balance) | **Option 1, Oracle.** Upgrade to Pay As You Go so it is never reclaimed. |
-| You have a card but want zero fuss | Option 2, GCP e2-micro. No idle policy. |
+| You can pay by card and want it to just work | **Option 4, cheap paid VPS.** ~$11-22/year at RackNerd, no idle games, one command to deploy. |
+| You have any card (even with no balance) | Option 1, Oracle. Upgrade to Pay As You Go so it is never reclaimed. |
+| You have a card but want zero fuss and zero cost | Option 2, GCP e2-micro. No idle policy, but a 1 GB/month egress cap. |
 | You have no card at all | **Option 3, free panel.** This is the only real no-card path. |
 
 **No card and no money?** Option 3 is your only path. Options 1 and 2 both
@@ -172,5 +212,6 @@ fastest path on a small or slow host.
 |---|---|
 | Oracle / GCP Always Free VM | $0 |
 | Free bot panel | $0 |
+| Cheapest paid VPS (RackNerd 1 GB) | ~$11-22/year, about $1-2/month |
 | PumpPortal `subscribeNewToken` | free (documented) |
 | Telegram bot | free |
