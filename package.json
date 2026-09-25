@@ -13,7 +13,9 @@
     "ptero:start": "node index.js",
     "stop": "pkill -f 'pumpfun-mint-monitor/node_modules/.bin/tsx' 2>/dev/null || true",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "selftest:health": "node scripts/health-selftest.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run build && npm run selftest:health"
   },
   "engines": {
     "node": ">=18.0.0"

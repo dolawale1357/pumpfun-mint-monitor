@@ -95,6 +95,10 @@ free, always-on setups (Oracle/GCP Always Free, or a free bot panel with no
 card required), plus the platforms that cannot work for this bot because it
 opens no HTTP port.
 
+**Render (free, no card):** see **[RENDER.md](./RENDER.md)**. Render requires a
+web service to listen on a port, so this bot can expose an optional `/health`
+endpoint. Read the suspension risk in RENDER.md before you start.
+
 **Paid VPS + PM2:** full steps in **[DEPLOY.md](./DEPLOY.md)**.
 
 Run **only one** bot instance (server **or** local dev, not both).
@@ -119,6 +123,44 @@ npm start
 ```bash
 npm run typecheck
 ```
+
+**Everything:** lint, typecheck, build, then the health self-test.
+
+```bash
+npm run verify
+```
+
+## Health endpoint (optional)
+
+The bot normally opens **no listening socket**. It is a pure outbound worker:
+Telegram long-polling plus one PumpPortal WebSocket. Hosts that require an open
+port (Render, for example) can be supported by an HTTP endpoint that stays
+disabled unless you ask for it.
+
+Enable it with `PORT` or `HEALTH_PORT`. Render injects `PORT` on its own.
+
+```bash
+HEALTH_PORT=8080 npm start
+curl -s localhost:8080/health
+```
+
+`/health` reports real state rather than merely proving a web server answered:
+
+| Status | HTTP | Meaning |
+| --- | --- | --- |
+| `ok` | 200 | Monitoring is on and the stream is delivering tokens |
+| `starting` | 200 | Inside the boot grace period, socket still connecting |
+| `stopped` | 503 | Monitoring is off, so nothing is being detected |
+| `degraded` | 503 | Monitoring is on but the socket is not connected |
+| `stale` | 503 | Socket says "connected" but has received nothing past the idle limit |
+
+`stale` is the useful one: a socket can stay "connected" while silently wedged,
+and no `close` event ever fires. `/` returns the same verdict as one line of
+text, and any other path returns 404. The payload never carries your bot token
+or chat id.
+
+Related settings: `HEALTH_MAX_IDLE_SECONDS` (default `900`) and
+`HEALTH_STARTUP_GRACE_SECONDS` (default `120`).
 
 ## Bot commands
 
@@ -221,11 +263,14 @@ Token Service (tokenService.ts) — dedup + stats
 Telegram Bot (bot.ts) — notifications + commands
 ```
 
-- `index.ts` — wires components; does not auto-start the stream unless `AUTOSTART_MONITORING=true`
+- `index.ts` — wires components; starts the stream when `AUTOSTART_MONITORING=true`, starts the optional health endpoint, and shuts down cleanly on SIGTERM
 - `config.ts` — loads environment variables
-- `websocket/pumpPortal.ts` — single connection, reconnect, subscribe
+- `websocket/pumpPortal.ts` — single connection, reconnect, subscribe, liveness tracking
 - `services/tokenService.ts` — normalize, deduplicate, statistics
 - `telegram/bot.ts` — commands, authorization, HTML messages
+- `telegram/outboundQueue.ts` — rate-limited Telegram delivery
+- `health/healthChecker.ts` — decides whether the monitor is genuinely working
+- `health/healthServer.ts` — optional HTTP `/health` endpoint (`node:http`, no Express)
 - `types/token.ts` — shared types
 - `utils/logger.ts` — structured console logging
 

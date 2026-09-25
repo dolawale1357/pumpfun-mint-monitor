@@ -1,0 +1,45 @@
+# Render Blueprint for pumpfun-mint-monitor.
+#
+# Read RENDER.md first. The free plan runs the bot for $0 with no card, but it
+# sleeps after 15 minutes without inbound traffic and the 750-hour monthly cap
+# can lock the service until the next month. RENDER.md states the risk plainly.
+
+services:
+  - type: web
+    name: pumpfun-mint-monitor
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+
+    # dist/ is committed, so nothing is compiled at deploy time. --ignore-scripts
+    # skips the postinstall and prepare lifecycle hooks, which need files that a
+    # source deploy does not have and which would otherwise fail the build.
+    buildCommand: npm ci --omit=dev --ignore-scripts
+    startCommand: node index.js
+
+    # healthCheckPath is deliberately absent. /health returns 503 whenever
+    # monitoring is off or the stream has not come up yet, and Render treats a
+    # 503 during deployment as a failed deploy. Check /health yourself instead.
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+
+      # After a restart or a cold start nobody is around to send /start.
+      - key: AUTOSTART_MONITORING
+        value: "true"
+
+      # Secrets. Declared here so the deploy knows they exist, filled in from
+      # the Render dashboard, never committed.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
+      # The stream normally delivers a token every few seconds, so 15 minutes of
+      # silence means the socket is connected but wedged. Lower it to fail over
+      # faster, raise it if PumpPortal ever goes quiet for long stretches.
+      - key: HEALTH_MAX_IDLE_SECONDS
+        value: "900"

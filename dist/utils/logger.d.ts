@@ -9,5 +9,8 @@ export declare const logger: {
     app: (message: string) => void;
     appWarn: (message: string) => void;
     appError: (message: string) => void;
+    health: (message: string) => void;
+    healthWarn: (message: string) => void;
+    healthError: (message: string) => void;
 };
 //# sourceMappingURL=logger.d.ts.map

@@ -13,6 +13,14 @@ export class PumpPortalClient {
     reconnectAttempts = 0;
     reconnectTimer = null;
     intentionalClose = false;
+    /**
+     * Timestamp of the last inbound socket activity (message or ping frame).
+     * A socket can stay "connected" while silently wedged, so health checks
+     * need this rather than readyState alone.
+     */
+    lastActivityAt = null;
+    /** When the current connection opened, or null while not connected. */
+    connectedAt = null;
     constructor(options) {
         this.wsUrl = options.wsUrl;
         this.onToken = options.onToken;
@@ -23,6 +31,14 @@ export class PumpPortalClient {
     }
     isMonitoringEnabled() {
         return this.monitoringEnabled;
+    }
+    /** Last inbound message or ping frame, or null if nothing has arrived yet. */
+    getLastActivityAt() {
+        return this.lastActivityAt;
+    }
+    /** When the current connection opened, or null while not connected. */
+    getConnectedAt() {
+        return this.connectedAt;
     }
     start() {
         if (this.monitoringEnabled && this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -46,6 +62,7 @@ export class PumpPortalClient {
         this.monitoringEnabled = false;
         this.intentionalClose = true;
         this.reconnectAttempts = 0;
+        this.connectedAt = null;
         this.clearReconnectTimer();
         this.closeSocket();
         this.setConnectionState("disconnected");
@@ -70,6 +87,7 @@ export class PumpPortalClient {
                 return;
             }
             this.reconnectAttempts = 0;
+            this.connectedAt = Date.now();
             this.setConnectionState("connected");
             logger.ws("Connected");
             this.subscribeNewToken();
@@ -78,9 +96,24 @@ export class PumpPortalClient {
             if (this.ws !== ws) {
                 return;
             }
+            this.lastActivityAt = Date.now();
             this.handleMessage(data);
         });
+        ws.on("ping", () => {
+            if (this.ws !== ws) {
+                return;
+            }
+            // Server pings prove the socket is alive even when no token events are
+            // arriving, so they count as activity and stop the health check flapping.
+            this.lastActivityAt = Date.now();
+        });
         ws.on("error", (error) => {
+            if (this.intentionalClose || this.ws !== ws) {
+                // stop() closing a socket that is still connecting surfaces here as
+                // "closed before the connection was established". That is an expected
+                // side effect of shutting down, not something to alarm anyone about.
+                return;
+            }
             logger.wsError(`WebSocket error: ${error.message}`);
         });
         ws.on("close", (code, reason) => {
@@ -88,6 +121,7 @@ export class PumpPortalClient {
                 return;
             }
             this.ws = null;
+            this.connectedAt = null;
             const reasonText = reason.toString();
             logger.ws(`Disconnected${code ? ` (code=${code}${reasonText ? `, reason=${reasonText}` : ""})` : ""}`);
             this.setConnectionState("disconnected");

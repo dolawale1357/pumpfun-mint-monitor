@@ -32,4 +32,7 @@ export const logger = {
   app: (message: string) => log("info", "APP", message),
   appWarn: (message: string) => log("warn", "APP", message),
   appError: (message: string) => log("error", "APP", message),
+  health: (message: string) => log("info", "HEALTH", message),
+  healthWarn: (message: string) => log("warn", "HEALTH", message),
+  healthError: (message: string) => log("error", "HEALTH", message),
 };

@@ -28,5 +28,8 @@ export const logger = {
     app: (message) => log("info", "APP", message),
     appWarn: (message) => log("warn", "APP", message),
     appError: (message) => log("error", "APP", message),
+    health: (message) => log("info", "HEALTH", message),
+    healthWarn: (message) => log("warn", "HEALTH", message),
+    healthError: (message) => log("error", "HEALTH", message),
 };
 //# sourceMappingURL=logger.js.map
