@@ -196,6 +196,26 @@ entire category of problem.
 require a card for identity verification, even though the compute itself is
 free.
 
+### Free panels that were live on 2026-09-25
+
+Every free panel surveyed requires **periodic renewal**. There is no free panel
+that is genuinely set-and-forget, so treat this whole category as "works only
+if you remember to click renew".
+
+| Panel | Free RAM | Renewal required | Verdict |
+|---|---|---|---|
+| FreeGameHost | **512 MB** | ~48h activity window | Most generous free RAM found. Node.js, SFTP, Pterodactyl. |
+| bot-hosting.net | 256 MB | every 4 days | Fine for this bot with the trimmed dependency install. |
+| fps.ms | 128 MB | **every 24 hours** | Skip. 128 MB is below the ~116 MB install peak, and daily renewal is unworkable. |
+| Wispbyte | 512 MB | biweekly | **Down as of 2026-09-25.** Homepage returns 69 bytes. |
+| HeavenCloud | 715 MB | every 7 days | Listed specs are good but renewal is weekly. |
+| VisiHost | 256 MB | none | Free slots were full; their paid Nano tier needs UPI/JazzCash/card. |
+
+**The renewal requirement defeats the stated goal.** The point of moving this
+off a home machine is that it runs while nobody is watching. A panel that goes
+offline 24 hours after your last visit to the web dashboard is not that. If you
+pick a panel anyway, set a phone reminder and log in to renew on schedule.
+
 ### Picking a free panel, and staying safe on it
 
 - Prefer a panel that advertises **no sleep** and **no forced renewals**. Some
