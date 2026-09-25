@@ -153,10 +153,13 @@ logins, and you own the machine.
 
 | Provider | Cheapest usable plan | Notes |
 |---|---|---|
-| **RackNerd** | ~$11-22 **per year** — 1 GB RAM / 1 vCPU / 20 GB SSD | Best value by a wide margin. Annual billing, cards and PayPal, no idle policy, full root, instant setup. |
-| Vultr | $2.50-5/mo | Instant, monthly billing, card. Costs more over a year. |
-| DigitalOcean | $4-6/mo | Same idea, friendlier UI. |
+| **SoftShellWeb** | **$17.95/year** — 1 GB RAM / 1 vCPU / 20 GB NVMe / dedicated IPv4 | Cheapest option that still has IPv4. LA only, LXC not KVM, smaller provider. Widest payment list of anyone: debit card, PayPal, crypto (USDT, BTC, Solana), Binance Pay, UnionPay. Avoid their $9.95 tier, it is IPv6-only and this bot needs IPv4. |
+| **RackNerd** | **$21.99/year** (product 952) — 1 GB RAM / 1 vCPU / 20 GB SSD / 3 TB | Best known-good value. Full root, KVM, dedicated IPv4, in stock in New York, Los Angeles and Chicago. Order direct: `https://my.racknerd.com/cart.php?a=add&pid=952`. Their specials page hides the price behind a "REVEAL DEALS" button, which is why it looks like there are no cheap plans. |
+| DigitalOcean | $4/mo ($48/yr) — 512 MB | Monthly, hourly billing, cancel anytime. New accounts sometimes get $200 trial credit. |
+| Vultr | $5/mo ($60/yr) — 1 GB | Monthly, hourly billing, capped at 672 hours. Their $2.50 plan is IPv6-only, avoid it. |
 | Hetzner | ~EUR 4-5/mo | Reputable, but raised prices across the board in June 2026 and sometimes asks for ID. |
+
+Note the annual prices above are roughly a year's worth of the monthly ones. The cheap RackNerd and SoftShellWeb deals are **annual prepay only**: RackNerd's month-to-month plans sit on a separate, far more expensive price track.
 
 Even the smallest plan is about 16x more machine than the bot needs (~55-62 MB
 RAM). From a fresh Ubuntu or Debian VM, one command does the rest. It installs
@@ -184,7 +187,7 @@ entire category of problem.
 
 | Situation | Use |
 |---|---|
-| You can pay by card and want it to just work | **Option 4, cheap paid VPS.** ~$11-22/year at RackNerd, no idle games, one command to deploy. |
+| You can pay by card and want it to just work | **Option 4, cheap paid VPS.** $17.95-21.99/year, no idle games, one command to deploy. |
 | You have any card (even with no balance) | Option 1, Oracle. Upgrade to Pay As You Go so it is never reclaimed. |
 | You have a card but want zero fuss and zero cost | Option 2, GCP e2-micro. No idle policy, but a 1 GB/month egress cap. |
 | You have no card at all | **Option 3, free panel.** This is the only real no-card path. |
