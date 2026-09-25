@@ -64,7 +64,7 @@ In `/home/container/.env`:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=-5394919441
+TELEGRAM_CHAT_ID=-1001234567890
 ```
 
 ---

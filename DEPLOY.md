@@ -56,7 +56,7 @@ Set:
 ```env
 PUMPPORTAL_API_KEY=
 TELEGRAM_BOT_TOKEN=your_token
-TELEGRAM_CHAT_ID=-5394919441
+TELEGRAM_CHAT_ID=-1001234567890
 ```
 
 Save and exit. Restrict permissions:
@@ -151,7 +151,7 @@ Your error happens when the egg runs **`ts-node`** on a TypeScript path and **`d
    you edit `src/` do you need to build: `npm install && npm run build`.
 4. Add `.env` in `/home/container/` (or map env vars in the panel):
    - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_CHAT_ID` (group: negative, e.g. `-5394919441`)
+   - `TELEGRAM_CHAT_ID` (group: negative, e.g. `-1001234567890`)
 5. **Reinstall** or in console:
    ```bash
    npm install
@@ -198,7 +198,7 @@ WebSockets are supported on these platforms; pick a region close to you (EU/US).
 
 - [ ] Stop local `npm run dev` on your Mac (avoid duplicate bot instances)
 - [ ] `.env` on the server only — never in git
-- [ ] Group chat ID is negative if using a group (e.g. `-5394919441`)
+- [ ] Group chat ID is negative if using a group (e.g. `-1001234567890`)
 - [ ] Send `/start` once after deploy
 - [ ] Send `/status` to confirm WebSocket + monitoring
 
