@@ -163,10 +163,23 @@ The usual workaround is an external pinger. Point a free UptimeRobot monitor at
   turns into a 503 the moment the stream goes stale.
 - But keeping it awake around the clock is exactly what spends the 750-hour
   budget. Sleeping is what keeps you inside the quota; sleeping is also what
-  stops the monitor. **You cannot have both free and always-on.**
+  stops the monitor. A pinger that never lets it sleep spends about 730 of the
+  750 hours, so always-on fits the free plan with almost no margin.
 
-Setting up the pinger, if you want the longest possible uptime inside the free
-quota:
+**In this repo, no account is needed.** `.github/workflows/keep-awake.yml` runs
+the same knock every 5 minutes from GitHub's cloud, so it works with every
+device of yours off. Free, because the repo is public. Two limits: GitHub runs
+schedules best-effort, so a run can be delayed by a few minutes (the next one is
+5 minutes later, well inside the 15-minute idle timer), and GitHub disables
+scheduled workflows after 60 days without repository activity, emailing the
+owner when it does. Any push re-enables it.
+
+It keeps the process awake, not the stream. A `/stop` latches by design and only
+`/start` clears it, so a stopped monitor stays stopped however often the pinger
+runs.
+
+If you would rather have alerting, use UptimeRobot instead of or as well as the
+workflow:
 
 1. Create a free account at [uptimerobot.com](https://uptimerobot.com).
 2. `Add New Monitor` → type `HTTP(s)`.

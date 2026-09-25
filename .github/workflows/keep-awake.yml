@@ -1,0 +1,75 @@
+# Keeps the free Render instance from spinning down.
+#
+# A free Render web service sleeps after 15 minutes with no inbound HTTP
+# traffic, and an outbound WebSocket plus the Telegram long poll do not count
+# as traffic. Sleeping stops monitoring until something knocks on the URL, so
+# something outside Render has to do the knocking. This runs in GitHub's cloud,
+# which means it keeps working with every device of yours switched off.
+#
+# Two limits worth knowing:
+#   - GitHub runs schedules best-effort, so a run can be delayed by a few
+#     minutes. The Render idle timer is 15 minutes and the next run is 5
+#     minutes later, so a delayed run is covered by the next one.
+#   - GitHub disables scheduled workflows after 60 days without repository
+#     activity, and emails the owner when it does. Any push re-enables it.
+#
+# Keeping the instance awake round the clock uses roughly 730 of the 750 free
+# instance hours per month. Going over the cap suspends the service until the
+# next month, so this is a deliberate trade of quota for uptime.
+#
+# This keeps the process awake, not the stream. A `/stop` from Telegram latches
+# by design and only `/start` clears it, so a stopped monitor stays stopped
+# however often this runs.
+name: keep-awake
+
+on:
+  schedule:
+    # Every 5 minutes, the shortest interval GitHub allows.
+    - cron: "*/5 * * * *"
+  # Allows a manual run from the Actions tab.
+  workflow_dispatch:
+
+# This job only makes an outbound HTTP request; it needs no repository access.
+permissions: {}
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Knock on the health endpoint
+        run: |
+          set -u
+          url="https://pumpfun-mint-monitor.onrender.com/health"
+          code="000"
+          body=""
+
+          # A spun-down instance needs 30 to 60 seconds to boot and answer, so a
+          # timeout is expected on the first attempt and is retried rather than
+          # reported as a failure.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 90 "$url" 2>/dev/null) || code="000"
+            echo "attempt ${attempt}: HTTP ${code}"
+            if [ "$code" != "000" ]; then
+              body=$(cat /tmp/health.json)
+              echo "$body"
+              break
+            fi
+            sleep 20
+          done
+
+          if [ "$code" = "000" ]; then
+            echo "::warning::no answer after 3 attempts; the instance may be down"
+            exit 0
+          fi
+
+          # 503 means the process is awake but not monitoring. That is a real
+          # fault, and /health explains it, so surface it without failing the
+          # run: a red workflow every time the stream stalls would be noise.
+          if [ "$code" = "503" ]; then
+            echo "::warning::monitor is awake but unhealthy: ${body}"
+          fi
