@@ -138,6 +138,12 @@ export function normalizeTokenEvent(raw) {
     }
     return event;
 }
+/**
+ * Upper bound on the in-memory dedupe cache. Without a cap the Set grows for
+ * the whole lifetime of the process, which matters for a 24/7 deployment.
+ * Entries are evicted in least-recently-seen order.
+ */
+const MAX_TRACKED_MINTS = 50_000;
 export class TokenService {
     seenMints = new Set();
     totalTokensReceived = 0;
@@ -145,9 +151,16 @@ export class TokenService {
     lastEventReceivedAt = null;
     lastBlockchainCreatedAt = null;
     startSession() {
-        if (this.sessionStartedAt === null) {
-            this.sessionStartedAt = Date.now();
+        if (this.sessionStartedAt !== null) {
+            return;
         }
+        // Counters are per-session so that /status rates describe the current run.
+        // The dedupe cache is deliberately NOT cleared: resuming a session should
+        // not re-alert mints that already fired before /stop.
+        this.sessionStartedAt = Date.now();
+        this.totalTokensReceived = 0;
+        this.lastEventReceivedAt = null;
+        this.lastBlockchainCreatedAt = null;
     }
     stopSession() {
         this.sessionStartedAt = null;
@@ -157,9 +170,18 @@ export class TokenService {
     }
     recordToken(event) {
         if (this.seenMints.has(event.mint)) {
+            // Refresh recency so eviction approximates least-recently-seen.
+            this.seenMints.delete(event.mint);
+            this.seenMints.add(event.mint);
             return false;
         }
         this.seenMints.add(event.mint);
+        if (this.seenMints.size > MAX_TRACKED_MINTS) {
+            const oldest = this.seenMints.values().next().value;
+            if (oldest !== undefined) {
+                this.seenMints.delete(oldest);
+            }
+        }
         this.totalTokensReceived += 1;
         this.lastEventReceivedAt = event.receivedAt;
         if (event.blockchainCreatedAt !== undefined) {

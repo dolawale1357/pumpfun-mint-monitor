@@ -6,7 +6,7 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
 const distEntry = join(rootDir, "dist", "index.js");
 
 if (!existsSync(distEntry)) {
-  console.error("[APP] dist/index.js is missing. Run: npm install && npm run build");
+  console.error("[APP] dist/index.js is missing. Run: npm run build");
   process.exit(1);
 }
 
