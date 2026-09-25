@@ -21,11 +21,46 @@ idle services, cannot run it. Most "free tier" platforms work that way.
 
 | Platform | Why it will not work |
 |---|---|
-| Render (free) | Free Web Services sleep after ~15 min idle and require an HTTP port. Background Workers are a paid feature. |
+| Render (free) | The 15-minute idle sleep is defeatable with pings, but the 750-hour monthly cap and the external-traffic rule make it a hard fail for this bot. See below. |
 | Railway | Trial credit only, then paid. |
 | Vercel / Netlify / Deno Deploy / Cloudflare Workers | Request-scoped. Cannot hold a Telegram long-poll and a WebSocket open forever. |
 | GitHub Codespaces / Actions | Not always-on. Actions is disabled after 60 days of repo inactivity. |
 | Fly.io / Koyeb / Northflank | Card required, and the genuinely free always-on tier is gone. |
+
+### The Render keep-alive trick, and why it still fails here
+
+The usual workaround is: add Express so the app binds an HTTP port, then point
+UptimeRobot at `/health` every 5 minutes so the 15-minute idle timer never
+fires, which keeps the process, and therefore the PumpPortal socket, alive.
+**The mechanism is real.** Render spins down a Free web service that receives
+no inbound traffic for 15 minutes, and an inbound ping resets that timer.
+UptimeRobot's free plan gives 50 monitors at 5-minute checks, which is enough.
+
+It still fails for this bot, for three independent reasons:
+
+1. **750 Free instance hours per workspace per month.** Always-on in a 31-day
+   month is 744 hours, so you sit at roughly 99% of the quota with about six
+   hours of margin. Exceed it and Render **suspends all Free web services until
+   the start of the next month**, with no way to restart them early. Every
+   other option on this page fails soft. This one fails hard and locked.
+2. **The service-initiated traffic rule.** Render's docs: "Render may suspend a
+   Free web service that initiates an uncommonly high volume of traffic over
+   the public internet," listing "invoking external APIs" as an example. A
+   persistent WebSocket to PumpPortal plus continuous Telegram polling is
+   exactly that pattern, and the decision is discretionary.
+3. **A ping cannot tell you whether the bot is working.** Pinging `/health`
+   only proves the HTTP server answered. If the PumpPortal socket dies or the
+   token session stops, Express still returns 200 and the uptime dashboard
+   stays green while the monitor is silently dead. Making it meaningful means
+   `/health` must report real state (socket connected, time since last message)
+   and return 503 once that state goes stale.
+
+Also worth knowing: Free instances are 512 MB RAM / 0.1 CPU, which is plenty
+for this bot; Render "might restart a Free web service at any time" (this is
+why `AUTOSTART_MONITORING=true` matters here); WebSocket connections close
+whenever the instance is replaced, which the existing reconnect backoff
+already handles; there is no shell access, so debugging is logs-only; and
+Render's own docs say "Do not use them for production applications."
 
 ---
 
