@@ -9,7 +9,11 @@ export class PumpPortalClient {
     onConnectionStateChange;
     ws = null;
     connectionState = "disconnected";
+    /** When connectionState last changed, so a stuck "connecting" is detectable. */
+    connectionStateSince = Date.now();
     monitoringEnabled = false;
+    /** True once the operator has sent /stop in this run. */
+    stoppedByUser = false;
     reconnectAttempts = 0;
     reconnectTimer = null;
     intentionalClose = false;
@@ -29,8 +33,19 @@ export class PumpPortalClient {
     getConnectionState() {
         return this.connectionState;
     }
+    /** When getConnectionState() last changed. */
+    getConnectionStateSince() {
+        return this.connectionStateSince;
+    }
     isMonitoringEnabled() {
         return this.monitoringEnabled;
+    }
+    /**
+     * True when the operator turned monitoring off with /stop. The watchdog uses
+     * this to stand down rather than fight a human decision.
+     */
+    isStoppedByUser() {
+        return this.stoppedByUser;
     }
     /** Last inbound message or ping frame, or null if nothing has arrived yet. */
     getLastActivityAt() {
@@ -45,6 +60,9 @@ export class PumpPortalClient {
             logger.ws("Already connected — skipping duplicate start");
             return;
         }
+        // /start is the operator asking for monitoring, so the watchdog is free to
+        // step in again if the stream later wedges.
+        this.stoppedByUser = false;
         this.monitoringEnabled = true;
         this.intentionalClose = false;
         this.clearReconnectTimer();
@@ -58,15 +76,38 @@ export class PumpPortalClient {
         }
         this.connect();
     }
+    /** Operator-initiated stop (/stop). The watchdog stands down for this run. */
+    stopByUser() {
+        this.stop();
+        this.stoppedByUser = true;
+    }
     stop() {
         this.monitoringEnabled = false;
         this.intentionalClose = true;
         this.reconnectAttempts = 0;
         this.connectedAt = null;
+        this.lastActivityAt = null;
         this.clearReconnectTimer();
         this.closeSocket();
         this.setConnectionState("disconnected");
         logger.ws("Monitoring stopped");
+    }
+    /**
+     * Drop the current socket and open a fresh one, keeping monitoring on. Used
+     * by the watchdog: a socket that is wedged, or stuck mid-handshake, will
+     * never emit `close`, so the reconnect has to be driven from outside.
+     */
+    restart() {
+        this.reconnectAttempts = 0;
+        this.clearReconnectTimer();
+        this.closeSocket();
+        this.setConnectionState("disconnected");
+        this.monitoringEnabled = true;
+        this.intentionalClose = false;
+        // Frames from the retired socket must not count as progress on the new one.
+        this.lastActivityAt = null;
+        this.connectedAt = null;
+        this.connect();
     }
     connect() {
         if (!this.monitoringEnabled) {
@@ -87,6 +128,9 @@ export class PumpPortalClient {
                 return;
             }
             this.reconnectAttempts = 0;
+            // Activity is per connection: a new socket starts with no frames, so the
+            // health check must not judge it on the previous socket's last message.
+            this.lastActivityAt = null;
             this.connectedAt = Date.now();
             this.setConnectionState("connected");
             logger.ws("Connected");
@@ -189,6 +233,9 @@ export class PumpPortalClient {
         }
     }
     setConnectionState(state) {
+        if (state !== this.connectionState) {
+            this.connectionStateSince = Date.now();
+        }
         this.connectionState = state;
         this.onConnectionStateChange?.(state);
     }

@@ -143,6 +143,18 @@ So the instance had been asleep for roughly 11 minutes, and the bot was not
 monitoring during that window. `AUTOSTART_MONITORING=true` is what made it come
 back on its own rather than sitting idle until someone sent `/start`.
 
+The watchdog armed by `AUTOSTART_MONITORING=true` heals a live process that has
+stopped monitoring (monitoring off, a socket stuck mid-handshake, a socket gone
+silent) within 30 seconds. It cannot help while the instance is spun down,
+because a stopped container runs no code. Expect roughly one silent gap of
+around 11 to 15 minutes per wake, and one process start per wake in the logs.
+
+A wake is also easy to misread. Telegram long-polling and monitoring are
+independent: after a cold start the bot answers `/status` while the stream is
+still connecting, and the site correctly reports `starting`. Conversely a bot
+that answers commands proves nothing about monitoring. Check `/health`, or send
+`/status` and read the `Monitoring:` line.
+
 The usual workaround is an external pinger. Point a free UptimeRobot monitor at
 `/health` every 5 minutes and the idle timer never fires. Two notes:
 
@@ -186,7 +198,7 @@ sets the first three.
 ## Running the checks yourself
 
 ```bash
-npm run verify        # lint, typecheck, build, then 67 health checks
+npm run verify        # lint, typecheck, build, then 91 health + 37 stream checks
 ```
 
 The health self-test starts the endpoint on a throwaway port and asserts every

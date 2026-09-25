@@ -68,7 +68,7 @@ export function registerTelegramCommands(bot: Bot, context: TelegramBotContext):
     }
 
     notificationQueue.stopAndClear();
-    pumpPortalClient.stop();
+    pumpPortalClient.stopByUser();
     tokenService.stopSession();
 
     await ctx.reply(

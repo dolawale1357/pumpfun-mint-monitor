@@ -22,6 +22,8 @@ export interface HealthSnapshot {
   pendingNotifications: number;
   sentNotifications: number;
   failedNotifications: number;
+  /** True when the operator sent /stop during this run. */
+  stoppedByUser: boolean;
 }
 
 export interface HealthDetails {
@@ -39,6 +41,8 @@ export interface HealthDetails {
   pendingNotifications: number;
   sentNotifications: number;
   failedNotifications: number;
+  /** Monitoring is off because /stop was sent, not because it failed. */
+  stoppedByUser: boolean;
 }
 
 export interface HealthReport {
@@ -107,12 +111,20 @@ export function evaluateHealth(
     pendingNotifications: snapshot.pendingNotifications,
     sentNotifications: snapshot.sentNotifications,
     failedNotifications: snapshot.failedNotifications,
+    stoppedByUser: snapshot.stoppedByUser,
   };
 
   if (!snapshot.monitoringEnabled) {
-    return buildReport(false, "stopped", [
-      "monitoring is not running: send /start, or set AUTOSTART_MONITORING=true so it starts on boot",
-    ], details);
+    return buildReport(
+      false,
+      "stopped",
+      [
+        snapshot.stoppedByUser
+          ? "monitoring is stopped: /stop was sent in this run, so the watchdog is standing down. Send /start to resume"
+          : "monitoring is not running: send /start, or set AUTOSTART_MONITORING=true so it starts on boot",
+      ],
+      details,
+    );
   }
 
   if (snapshot.connectionState !== "connected") {

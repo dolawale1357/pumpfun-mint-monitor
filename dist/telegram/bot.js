@@ -43,7 +43,7 @@ export function registerTelegramCommands(bot, context) {
             return;
         }
         notificationQueue.stopAndClear();
-        pumpPortalClient.stop();
+        pumpPortalClient.stopByUser();
         tokenService.stopSession();
         await ctx.reply("⏹ Pump.fun mint monitor stopped.\n\nNo further notifications will be sent until /start.", { parse_mode: "HTML" });
     });

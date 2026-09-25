@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import { loadConfig, type AppConfig } from "./config.js";
 import { HealthServer } from "./health/healthServer.js";
+import { MonitorWatchdog } from "./health/watchdog.js";
 import { TokenService } from "./services/tokenService.js";
 import { registerTelegramCommands } from "./telegram/bot.js";
 import { TelegramNotificationQueue } from "./telegram/outboundQueue.js";
@@ -87,6 +88,8 @@ async function main(): Promise<void> {
             connectionState: pumpPortalClient.getConnectionState(),
             lastActivityAt: pumpPortalClient.getLastActivityAt(),
             connectedAt: pumpPortalClient.getConnectedAt(),
+            connectionStateSince: pumpPortalClient.getConnectionStateSince(),
+            stoppedByUser: pumpPortalClient.isStoppedByUser(),
             stats: tokenService.getStats(),
             notificationsEnabled: notificationQueue.isEnabled(),
             pendingNotifications: notificationQueue.getPendingCount(),
@@ -105,6 +108,38 @@ async function main(): Promise<void> {
   } else {
     logger.app("Starting Telegram bot (PumpPortal stream will start on /start)");
   }
+
+  // The failure this deployment kept hitting is a process that looks alive
+  // while monitoring is off: the bot answers commands and nothing is notified.
+  // With autostart on, the watchdog brings monitoring back by itself, and
+  // replaces a socket that is wedged or stuck mid-handshake. With autostart
+  // off there is no watchdog at all, so /stop stays stopped.
+  const watchdog =
+    config.autostartMonitoring
+      ? new MonitorWatchdog({
+          startupGraceMs: config.healthStartupGraceSeconds * 1_000,
+          maxIdleMs: config.healthMaxIdleSeconds * 1_000,
+          readSnapshot: () => ({
+            processStartedAt,
+            monitoringEnabled: pumpPortalClient.isMonitoringEnabled(),
+            connectionState: pumpPortalClient.getConnectionState(),
+            connectionStateSince: pumpPortalClient.getConnectionStateSince(),
+            lastActivityAt: pumpPortalClient.getLastActivityAt(),
+            connectedAt: pumpPortalClient.getConnectedAt(),
+          }),
+          isStoppedByUser: () => pumpPortalClient.isStoppedByUser(),
+          enableMonitoring: () => {
+            notificationQueue.enable();
+            pumpPortalClient.start();
+            tokenService.startSession();
+          },
+          restartStream: () => {
+            pumpPortalClient.restart();
+          },
+        })
+      : null;
+
+  watchdog?.start();
 
   if (healthServer !== null) {
     await healthServer.start();
@@ -125,6 +160,7 @@ async function main(): Promise<void> {
     logger.app(`${signal} received — shutting down`);
 
     try {
+      watchdog?.stop();
       pumpPortalClient.stop();
       if (healthServer !== null) {
         await healthServer.stop();

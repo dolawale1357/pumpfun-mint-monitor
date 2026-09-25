@@ -19,6 +19,8 @@ export interface HealthSnapshot {
     pendingNotifications: number;
     sentNotifications: number;
     failedNotifications: number;
+    /** True when the operator sent /stop during this run. */
+    stoppedByUser: boolean;
 }
 export interface HealthDetails {
     uptimeSeconds: number;
@@ -35,6 +37,8 @@ export interface HealthDetails {
     pendingNotifications: number;
     sentNotifications: number;
     failedNotifications: number;
+    /** Monitoring is off because /stop was sent, not because it failed. */
+    stoppedByUser: boolean;
 }
 export interface HealthReport {
     healthy: boolean;

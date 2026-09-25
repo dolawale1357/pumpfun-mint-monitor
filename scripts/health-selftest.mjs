@@ -24,8 +24,9 @@ const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const checkerPath = join(rootDir, "dist", "health", "healthChecker.js");
 const serverPath = join(rootDir, "dist", "health", "healthServer.js");
 const configPath = join(rootDir, "dist", "config.js");
+const watchdogPath = join(rootDir, "dist", "health", "watchdog.js");
 
-const missing = [checkerPath, serverPath, configPath].filter(
+const missing = [checkerPath, serverPath, configPath, watchdogPath].filter(
   (path) => !existsSync(path),
 );
 if (missing.length > 0) {
@@ -39,6 +40,9 @@ if (missing.length > 0) {
 const { evaluateHealth } = await import(pathToFileURL(checkerPath).href);
 const { HealthServer } = await import(pathToFileURL(serverPath).href);
 const { loadConfig } = await import(pathToFileURL(configPath).href);
+const { decideWatchdogAction, MonitorWatchdog } = await import(
+  pathToFileURL(watchdogPath).href,
+);
 
 let passed = 0;
 const failures = [];
@@ -114,6 +118,7 @@ function makeSnapshot(overrides = {}) {
     pendingNotifications: 0,
     sentNotifications: 12,
     failedNotifications: 0,
+    stoppedByUser: false,
     ...overrides,
   };
 }
@@ -133,6 +138,27 @@ console.log("\n== evaluateHealth ==");
   eq("stopped: monitoring off is unhealthy", report.healthy, false);
   eq("stopped: status is reported", report.status, "stopped");
   check("stopped: explains why and how to fix", report.reasons.length > 0);
+  eq("stopped: not blamed on /stop by default", report.details.stoppedByUser, false);
+}
+
+{
+  const report = evaluateHealth(
+    makeSnapshot({
+      monitoringEnabled: false,
+      connectionState: "disconnected",
+      stoppedByUser: true,
+    }),
+    thresholds,
+    NOW,
+  );
+  eq("stopped by /stop: still unhealthy", report.healthy, false);
+  eq("stopped by /stop: flagged in details", report.details.stoppedByUser, true);
+  check(
+    "stopped by /stop: reason names /stop rather than autostart",
+    report.reasons.some((reason) => reason.includes("/stop")) &&
+      !report.reasons.some((reason) => reason.includes("AUTOSTART_MONITORING")),
+    report.reasons.join("; "),
+  );
 }
 
 {
@@ -258,6 +284,204 @@ console.log("\n== evaluateHealth ==");
         (name) => !CREDENTIAL_KEY.test(name),
       ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Part 1b — watchdog: a process that is alive but not monitoring heals itself
+// ---------------------------------------------------------------------------
+
+console.log("\n== MonitorWatchdog ==");
+
+const policy = {
+  stoppedByUser: false,
+  startupGraceMs: 120_000,
+  maxIdleMs: 900_000,
+};
+
+/** A monitor that is running, connected and receiving. */
+function makeWatchdogSnapshot(overrides = {}) {
+  return {
+    processStartedAt: NOW - 600_000,
+    monitoringEnabled: true,
+    connectionState: "connected",
+    connectionStateSince: NOW - 60_000,
+    lastActivityAt: NOW - 5_000,
+    connectedAt: NOW - 60_000,
+    ...overrides,
+  };
+}
+
+eq(
+  "watchdog: leaves a healthy monitor alone",
+  decideWatchdogAction(makeWatchdogSnapshot(), policy, NOW),
+  "none",
+);
+eq(
+  "watchdog: starts monitoring that was left off",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({ monitoringEnabled: false }),
+    policy,
+    NOW,
+  ),
+  "enable-monitoring",
+);
+eq(
+  "watchdog: acts on missing monitoring even inside the boot grace",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      monitoringEnabled: false,
+      processStartedAt: NOW - 5_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "enable-monitoring",
+);
+eq(
+  "watchdog: stands down after /stop",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({ monitoringEnabled: false }),
+    { ...policy, stoppedByUser: true },
+    NOW,
+  ),
+  "none",
+);
+eq(
+  "watchdog: does not fight /stop even on a wedged socket",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({ lastActivityAt: NOW - 3_600_000 }),
+    { ...policy, stoppedByUser: true },
+    NOW,
+  ),
+  "none",
+);
+eq(
+  "watchdog: forces a fresh socket when connected but silent",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({ lastActivityAt: NOW - 901_000 }),
+    policy,
+    NOW,
+  ),
+  "restart-stream",
+);
+eq(
+  "watchdog: tolerates silence inside the idle limit",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({ lastActivityAt: NOW - 899_000 }),
+    policy,
+    NOW,
+  ),
+  "none",
+);
+eq(
+  "watchdog: forces a fresh socket stuck mid-handshake",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      connectionState: "connecting",
+      connectedAt: null,
+      lastActivityAt: null,
+      connectionStateSince: NOW - 300_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "restart-stream",
+);
+eq(
+  "watchdog: gives a connecting socket the grace period",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      connectionState: "connecting",
+      connectedAt: null,
+      lastActivityAt: null,
+      connectionStateSince: NOW - 30_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "none",
+);
+eq(
+  "watchdog: waits out the boot grace before judging state",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      processStartedAt: NOW - 10_000,
+      connectionState: "connecting",
+      connectedAt: null,
+      lastActivityAt: null,
+      connectionStateSince: NOW - 10_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "none",
+);
+eq(
+  "watchdog: recovers a socket that never delivered a frame",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      lastActivityAt: null,
+      connectionStateSince: NOW - 901_000,
+      connectedAt: NOW - 901_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "restart-stream",
+);
+// Same rule as /health: a socket that connected but has never carried a frame
+// is judged from the moment it connected, so no action inside the idle limit.
+eq(
+  "watchdog: agrees with /health on a silent-but-fresh connection",
+  decideWatchdogAction(
+    makeWatchdogSnapshot({
+      lastActivityAt: null,
+      connectionStateSince: NOW - 300_000,
+      connectedAt: NOW - 300_000,
+    }),
+    policy,
+    NOW,
+  ),
+  "none",
+);
+
+{
+  // Which callback fires on a tick, and does /stop gate both of them?
+  const calls = [];
+  let snapshot = makeWatchdogSnapshot();
+  let stoppedByUser = false;
+  const watchdog = new MonitorWatchdog({
+    startupGraceMs: policy.startupGraceMs,
+    maxIdleMs: policy.maxIdleMs,
+    readSnapshot: () => snapshot,
+    isStoppedByUser: () => stoppedByUser,
+    enableMonitoring: () => calls.push("enable"),
+    restartStream: () => calls.push("restart"),
+    intervalMs: 60_000,
+    now: () => NOW,
+  });
+
+  eq("watchdog tick: healthy run does nothing", watchdog.tick(), "none");
+  eq("watchdog tick: no callback on a healthy run", calls.length, 0);
+
+  snapshot = makeWatchdogSnapshot({ monitoringEnabled: false });
+  eq("watchdog tick: re-enables monitoring", watchdog.tick(), "enable-monitoring");
+  eq("watchdog tick: enable called", calls.join(","), "enable");
+
+  stoppedByUser = true;
+  eq("watchdog tick: respects /stop", watchdog.tick(), "none");
+  stoppedByUser = false;
+
+  snapshot = makeWatchdogSnapshot({ lastActivityAt: NOW - 3_600_000 });
+  eq("watchdog tick: restarts a wedged stream", watchdog.tick(), "restart-stream");
+  eq("watchdog tick: restart called", calls.join(","), "enable,restart");
+
+  // start()/stop() must be idempotent so a double call cannot leak a timer.
+  watchdog.start();
+  watchdog.start();
+  watchdog.stop();
+  watchdog.stop();
+  check("watchdog lifecycle: start and stop are idempotent", true);
 }
 
 // ---------------------------------------------------------------------------

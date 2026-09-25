@@ -124,7 +124,7 @@ npm start
 npm run typecheck
 ```
 
-**Everything:** lint, typecheck, build, then the health self-test.
+**Everything:** lint, typecheck, build, then the health and stream self-tests.
 
 ```bash
 npm run verify
@@ -171,6 +171,13 @@ To have monitoring begin on boot instead, set `AUTOSTART_MONITORING=true` in
 schedule (most free panels do), because otherwise a restart leaves the bot
 running but monitoring **off**, and it will stay silent until someone sends
 `/start`. `/stop` still works to turn it off for the current run.
+
+With autostart on, a watchdog also runs every 30 seconds and fixes the three
+ways a process can be alive but not monitoring: monitoring switched off without
+`/stop`, a socket stuck mid-handshake (`ws` has no connect timeout), and a
+connected socket that has gone silent. Each of those is silent by nature, so no
+`close` event ever fires and the client's own reconnect cannot see them. `/stop`
+latches, so the watchdog stands down until `/start`.
 
 | Command | Description |
 |---------|-------------|

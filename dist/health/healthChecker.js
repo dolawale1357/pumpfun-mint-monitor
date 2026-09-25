@@ -40,10 +40,13 @@ export function evaluateHealth(snapshot, thresholds, now = Date.now()) {
         pendingNotifications: snapshot.pendingNotifications,
         sentNotifications: snapshot.sentNotifications,
         failedNotifications: snapshot.failedNotifications,
+        stoppedByUser: snapshot.stoppedByUser,
     };
     if (!snapshot.monitoringEnabled) {
         return buildReport(false, "stopped", [
-            "monitoring is not running: send /start, or set AUTOSTART_MONITORING=true so it starts on boot",
+            snapshot.stoppedByUser
+                ? "monitoring is stopped: /stop was sent in this run, so the watchdog is standing down. Send /start to resume"
+                : "monitoring is not running: send /start, or set AUTOSTART_MONITORING=true so it starts on boot",
         ], details);
     }
     if (snapshot.connectionState !== "connected") {

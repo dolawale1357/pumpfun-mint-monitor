@@ -15,7 +15,8 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "selftest:health": "node scripts/health-selftest.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run build && npm run selftest:health"
+    "selftest:stream": "node scripts/stream-selftest.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run build && npm run selftest:health && npm run selftest:stream"
   },
   "engines": {
     "node": ">=18.0.0"
