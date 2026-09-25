@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # One-shot installer for a fresh Ubuntu / Debian VM.
-# Works on Oracle Cloud Always Free (ARM or AMD) and Google Cloud e2-micro.
+# Works on any KVM VPS with root: RackNerd, Vultr, Hetzner, DigitalOcean,
+# Oracle Cloud Always Free (ARM or AMD), Google Cloud e2-micro.
 #
 # Usage, on the server, from inside the project folder:
 #   sudo bash deploy/install-vps.sh
@@ -72,6 +73,10 @@ if [[ ! -f .env ]]; then
 PUMPPORTAL_API_KEY=
 TELEGRAM_BOT_TOKEN=REPLACE_ME
 TELEGRAM_CHAT_ID=REPLACE_ME
+# Start monitoring as soon as the service boots. Required on any host that
+# restarts the app on its own (systemd after a reboot, panel containers),
+# otherwise the bot comes back up with monitoring off and waits for /start.
+AUTOSTART_MONITORING=true
 ENVEOF
 fi
 chmod 600 .env
