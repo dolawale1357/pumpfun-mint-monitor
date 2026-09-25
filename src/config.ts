@@ -5,6 +5,19 @@ export interface AppConfig {
   telegramBotToken: string;
   telegramChatId: string;
   pumpPortalWsUrl: string;
+  /**
+   * When true, monitoring starts as soon as the process boots instead of
+   * waiting for /start. Useful on hosts that restart the app unattended,
+   * where nobody is around to send /start.
+   */
+  autostartMonitoring: boolean;
+}
+
+function readBoolean(value: string | undefined): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
 }
 
 function requireEnv(name: "TELEGRAM_BOT_TOKEN" | "TELEGRAM_CHAT_ID"): string {
@@ -29,11 +42,13 @@ export function loadConfig(): AppConfig {
   const pumpPortalApiKey = process.env["PUMPPORTAL_API_KEY"]?.trim() || undefined;
   const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN");
   const telegramChatId = requireEnv("TELEGRAM_CHAT_ID");
+  const autostartMonitoring = readBoolean(process.env["AUTOSTART_MONITORING"]);
 
   return {
     pumpPortalApiKey,
     telegramBotToken,
     telegramChatId,
     pumpPortalWsUrl: buildPumpPortalWsUrl(pumpPortalApiKey),
+    autostartMonitoring,
   };
 }

@@ -94,8 +94,13 @@ Panel steps:
 2. In the console: `npm ci --omit=dev --ignore-scripts`
 3. Set the env vars in the panel, or create `.env`:
    `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (group ids are negative),
-   optional `PUMPPORTAL_API_KEY`.
+   optional `PUMPPORTAL_API_KEY`, and **`AUTOSTART_MONITORING=true`**.
 4. Start, then send `/start` in Telegram.
+
+**Set `AUTOSTART_MONITORING=true`.** Panels restart containers on their own
+schedule. Without this, the bot comes back up with monitoring **off** and
+stays silent until a human sends `/start`, so you would think it is running
+when it is not.
 
 No build step is needed: `dist/` is committed.
 

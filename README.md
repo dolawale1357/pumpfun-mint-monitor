@@ -124,6 +124,12 @@ npm run typecheck
 
 The PumpPortal stream does **not** start automatically. Send `/start` from the authorized chat.
 
+To have monitoring begin on boot instead, set `AUTOSTART_MONITORING=true` in
+`.env`. Do this if you deploy somewhere that restarts your app on its own
+schedule (most free panels do), because otherwise a restart leaves the bot
+running but monitoring **off**, and it will stay silent until someone sends
+`/start`. `/stop` still works to turn it off for the current run.
+
 | Command | Description |
 |---------|-------------|
 | `/start` | Start WebSocket listener and subscribe to `subscribeNewToken` |
@@ -215,7 +221,7 @@ Token Service (tokenService.ts) — dedup + stats
 Telegram Bot (bot.ts) — notifications + commands
 ```
 
-- `index.ts` — wires components; does not auto-start the stream
+- `index.ts` — wires components; does not auto-start the stream unless `AUTOSTART_MONITORING=true`
 - `config.ts` — loads environment variables
 - `websocket/pumpPortal.ts` — single connection, reconnect, subscribe
 - `services/tokenService.ts` — normalize, deduplicate, statistics

@@ -51,8 +51,18 @@ async function main() {
     bot.catch((error) => {
         logger.telegramError(`Unhandled bot error: ${error.message}`);
     });
-    logger.app("Starting Telegram bot (PumpPortal stream will start on /start)");
     logger.app("Trading: DISABLED");
+    if (config.autostartMonitoring) {
+        // Hosts that restart the app on their own schedule mean nobody is around
+        // to send /start, so resume monitoring immediately.
+        notificationQueue.enable();
+        pumpPortalClient.start();
+        tokenService.startSession();
+        logger.app("Autostart enabled — monitoring starts without waiting for /start");
+    }
+    else {
+        logger.app("Starting Telegram bot (PumpPortal stream will start on /start)");
+    }
     await bot.start({
         onStart: () => {
             logger.telegram("Bot is listening for commands");
